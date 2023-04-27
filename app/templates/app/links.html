@@ -1,0 +1,12 @@
+﻿{% extends "app/layout.html" %}
+
+{% block content %}
+{% load staticfiles %}
+<h2> {{ title }} </h2>
+<h4> {{ message }} </h4>    
+<div class="linksbox">
+    <a class="usefulresourceslink" href="https://ru.wikipedia.org/wiki/Механическая_клавиатура" target="_blank"><img class="usefulresourceslink" src="{% static 'app/content/img/wikilogo.png' %}"/></a><br />
+    <a class="usefulresourceslink" href="https://wiki.geekboards.ru" target="_blank"><img class="usefulresourceslink" src="{% static 'app/content/img/geekboardslogo.png' %}"/></a><br />
+    <a class="usefulresourceslink" href="https://mechanicalkeyboards.com/terms" target="_blank"><img class="usefulresourceslink" src="{% static 'app/content/img/mklogo.jpg' %}"/></a><br />
+</div>
+{% endblock %}

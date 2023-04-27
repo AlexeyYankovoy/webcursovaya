@@ -1,0 +1,14 @@
+﻿{% extends "app/layout.html" %}
+
+{% block content %}
+<h2>{{ title }}</h2>
+<br />
+{% for post in posts %}
+<hr class="separateposts"/>
+<div class="">
+    <h4 class="newstitle"><a class="newslink" href="{% url 'newspost' parametr=post.id %}"> {{post.title}} </a></h4>
+    <p> {{post.description}} </p>
+    <h6> {{post.date}} </h6>
+</div>
+{% endfor %}
+{% endblock %}
