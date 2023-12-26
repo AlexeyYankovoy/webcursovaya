@@ -1,0 +1,18 @@
+﻿{% extends "app/layout.html" %}
+{% load static %}
+
+{% block content %}
+
+<h2>Добавить товар</h2>
+<form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div>
+        {{ product_form.as_p }}
+        <button type="submit" class="save btn btn-default">Добавить товар</button>
+    </div>
+</form>
+
+<style>
+    
+</style>
+{% endblock %}

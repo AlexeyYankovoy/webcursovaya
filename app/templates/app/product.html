@@ -1,0 +1,65 @@
+﻿{% extends "app/layout.html" %}
+
+{% block content %}
+<h2>{{ title }}</h2>
+<div class="menu">
+  <ul class="category-list">
+    {% for cat in categories %}
+      <a href="{% url 'category' cat.id %}" class="category-link">
+        <li class="category-item {% if cat.id == product.category.id %}selected-category{% endif %}">
+          {{ cat.name }}
+        </li>
+      </a>
+    {% empty %}
+      <li class="empty-category">Каталог пуст.</li>
+    {% endfor %}
+  </ul>
+</div>
+
+<div class="product-details">  
+    <img class="product-image" src="{{ product.image.url }}" alt="{{ product.name }}">
+  <div class="product-main">
+    <h3 class="product-name">{{ product.name }}</h3>    
+    <p class="product-description">{{ product.description }}</p>
+  </div>
+  <div class="product-notmain">
+    <h4>Технические характеристики:</h4>
+      {% for paragraph in product.get_technical_specifications_as_paragraphs %}
+          {{ paragraph|safe }}
+      {% endfor %}
+
+    <h4>Цена: {{ product.price }} рублей</h4>
+
+    {% if user.is_authenticated %}
+      <button class="add-to-cart-button" data-product-id="{{ product.id }}">Добавить в корзину</button>
+    {% else %}
+      <p class="add-to-cart-disabled">Зарегистрируйтесь для добавления в корзину</p>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  $(document).ready(function() {
+      $(".add-to-cart-button").click(function() {
+          var product_id = $(this).data("product-id");
+  
+          $.ajax({
+              type: "POST",
+              url: "{% url 'add_to_cart' %}",
+              data: {
+                  csrfmiddlewaretoken: '{{ csrf_token }}',
+                  product_id: product_id,
+              },
+              success: function(data) {
+                  alert(data.message);
+              },
+              error: function(xhr, status, error) {
+                  console.error(xhr.responseText);
+                  alert("Error: Продукт не может быть добавлен в корзину.");
+              }
+          });
+      });
+  });
+  </script>
+
+{% endblock %}

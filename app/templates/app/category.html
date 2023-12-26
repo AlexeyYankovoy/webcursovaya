@@ -1,0 +1,36 @@
+﻿{% extends "app/layout.html" %}
+
+{% block content %}
+<h2>{{ category.name }}</h2>
+<div class="menu">
+  <ul class="category-list">
+    {% for cat in categories %}
+      <a href="{% url 'category' cat.id %}" class="category-link">
+        <li class="category-item {% if cat.id == category.id %}selected-category{% endif %}">
+          {{ cat.name }}
+        </li>
+      </a>
+    {% empty %}
+      <li class="empty-category">Каталог пуст.</li>
+    {% endfor %}
+  </ul>
+</div>
+  <div class="product-content">
+    {% if products %}
+      <div class="product-list">
+        {% for product in products %}
+          <div class="product-item">
+            <a href="{% url 'product' product.id %}">
+              <img class="category-item-image", src="{{ product.image.url }}", alt="{{ product.name }}" >     
+              <div class="category-item-name"><p>{{ product.name }}</p></div>                         
+              <div class="category-item-price"><p>{{ product.price }} ₽</p></div>
+                          
+            </a>            
+          </div>
+        {% endfor %}
+        </div>
+    {% else %}
+      <p>В данной категории нет товаров.</p>
+    {% endif %}
+  </div>
+{% endblock %}

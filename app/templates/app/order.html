@@ -1,0 +1,194 @@
+﻿{% extends "app/layout.html" %}
+{% load static %}
+
+{% block content %}
+<div class="order-details">
+    <h2 class="order-title">Информация о заказе</h2>
+
+    <div class="order-info">
+        <p><strong>Номер заказа:</strong> {{ order.id }}</p>
+        <p><strong>Имя заказчика:</strong> {{ order.user.username }}</p>
+        <p><strong>Дата заказа:</strong> {{ order.order_date }}</p>
+        <p><strong>Стоимость заказа:</strong> {{ order.total_amount }} ₽</p>
+        <p class="before-status">
+            <strong>Статус:</strong>
+            {% if not perms.app.can_view_all_orders %}
+            <p class="user-order-status">{{ order.status.name }}</p>
+            {% endif %}
+        </p>
+    </div>
+    {% if perms.app.can_view_all_orders %}
+    <div class="status-list">
+        {% for status in statuses %}
+        {% if status.id == order.status.id %}
+        <p class="order-status">{{ status.name }}</p>
+        {% else %}
+        <p class="update_status order-status order-status--unchoiced"
+           data-status-id="{{ status.id }}">{{ status.name }}</p>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if perms.app.can_view_all_orders %}
+    <button class="delete-order-button">Удалить заказ</button>
+    {% endif %}
+</div>
+<div class="order-items">
+  <h3 class="order-items-title">Список позиций</h3>
+
+  <table class="order-items-table">
+      <thead>
+          <tr>
+              <th>Товар</th>
+              <th>Количество</th>
+              <th>Цена за штуку</th>
+              <th>Сумма</th>
+              {% if perms.app.can_view_all_orders %}
+              <th>Удалить</th>
+              {% endif %}
+          </tr>
+      </thead>
+      <tbody>
+          {% for item in order.order_items.all %}
+          <tr>
+              <td>
+                  <a class="product-link" href="{% url 'product' item.product.id %}">{{ item.product.name }}</a>
+              </td>
+              <td>
+                  {% if perms.app.can_view_all_orders %}
+                  <button class="quantity-button decrease-quantity-button" data-item-id="{{ item.id }}">−</button>
+                  <span>{{ item.quantity }}</span>
+                  <button class="quantity-button increase-quantity-button" data-item-id="{{ item.id }}">+</button>
+                  {% else %}
+                  <span>{{ item.quantity }}</span>
+                  {% endif %}
+              </td>
+              <td>{{ item.product.price }} ₽</td>
+              <td>{{ item.subtotal }} ₽</td>
+              {% if perms.app.can_view_all_orders %}
+              <td>
+                  <button class="remove-from-cart-button" data-item-id="{{ item.id }}">X</button>
+              </td>
+              {% endif %}
+          </tr>
+          {% endfor %}
+      </tbody>
+  </table>
+</div>
+
+<script>
+$(document).ready(function() {
+    $(".delete-order-button").click(function() {
+        if (confirm("Вы уверены, что хотите удалить этот заказ?")) {
+            $.ajax({
+                type: "POST",
+                url: "{% url 'delete_order' %}", 
+                data: {
+                    csrfmiddlewaretoken: '{{ csrf_token }}',
+                    order_id: +'{{ order.id }}',
+                },
+                success: function(data) {
+                    alert(data.message);
+                    if (data.order_deleted) {
+                        window.location.href = "{% url 'orders' %}";
+                    } else {
+                        location.reload();
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error(xhr.responseText);
+                    alert("Error: Заказ не может быть удален.");
+                }
+            });
+        }
+    });
+    $(".remove-from-cart-button").click(function() {
+        var item_id = $(this).data("item-id");
+
+        $.ajax({
+            type: "POST",
+            url: "{% url 'remove_from_cart' %}",
+            data: {
+                csrfmiddlewaretoken: '{{ csrf_token }}',
+                item_id: item_id,
+            },
+            success: function(data) {
+                alert(data.message);
+                if (data.order_deleted) {
+                    window.location.href = "{% url 'orders' %}";
+                } else {
+                    location.reload();
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error(xhr.responseText);
+                alert("Error: Продукт не может быть удален из корзины.");
+            }
+        });
+    });
+    $(".increase-quantity-button").click(function() {
+        var item_id = $(this).data("item-id");
+
+        $.ajax({
+            type: "POST",
+            url: "{% url 'increase_quantity' %}",
+            data: {
+                csrfmiddlewaretoken: '{{ csrf_token }}',
+                item_id: item_id,
+            },
+            success: function(data) {
+                location.reload();
+            },
+            error: function(xhr, status, error) {
+                console.error(xhr.responseText);
+                alert("Error: Не удалось увеличить количество.");
+            }
+        });
+    });
+    $(".decrease-quantity-button").click(function() {
+        var item_id = $(this).data("item-id");
+
+        $.ajax({
+            type: "POST",
+            url: "{% url 'decrease_quantity' %}",
+            data: {
+                csrfmiddlewaretoken: '{{ csrf_token }}',
+                item_id: item_id,
+            },
+            success: function(data) {
+                if (data.order_deleted) {
+                    window.location.href = "{% url 'orders' %}";
+                } else {
+                    location.reload();
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error(xhr.responseText);
+                alert("Error: Не удалось уменьшить количество.");
+            }
+        });
+    });
+    $(".update_status").click(function() {
+        var status_id = $(this).data("status-id");
+
+        $.ajax({
+            type: "POST",
+            url: "{% url 'update_status' %}",
+            data: {
+                csrfmiddlewaretoken: '{{ csrf_token }}',
+                order_id: '{{ order.id }}',
+                status_id: status_id,
+            },
+            success: function(data) {
+                location.reload();
+            },
+            error: function(xhr, status, error) {
+                console.error(xhr.responseText);
+                alert("Error: Не удалось обновить статус.");
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

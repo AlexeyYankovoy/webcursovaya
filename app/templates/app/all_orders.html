@@ -1,0 +1,35 @@
+﻿{% extends "app/layout.html" %}
+{% load static %}
+
+{% block content %}
+<div class="orders-page">
+    <h2 class="orders-title">Все заказы</h2>
+
+    <table class="orders-table">
+        <thead>
+            <tr>
+                <th>Заказ</th>
+                <th>Пользователь</th>
+                <th>Дата заказа</th>
+                <th>Общая сумма</th>
+                <th>Статус</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            <tr>
+                <td><a href="{% url 'order' order.id %}">Заказ #{{ order.id }}</a></td>
+                <td>{{ order.user.username }}</td>
+                <td>{{ order.order_date }}</td>
+                <td>{{ order.total_amount }} ₽</td>
+                <td>{{ order.status.name }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5">Нет заказов.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

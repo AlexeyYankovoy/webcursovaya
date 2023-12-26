@@ -3,7 +3,19 @@
     {% csrf_token %}
     <ul class="nav navbar-nav navbar-right">
         {% if user.is_superuser %}
-        <li><a href="{% url 'newpost' %}">Добавить статью</a></li>
+        <li class="has-submenu"><a class="nav__item-link" href="/">Администрирование</a>
+        <ul class="submenu">
+            <li class="submenu-item"><a class="submenu-item" href="{%url 'newpost' %}">Добавить статью</a></li>
+            <li class="submenu-item"><a class="submenu-item" href="{% url 'add_product' %}">Добавить товар</a></li>                         
+        </ul>
+        </li>
+        {% else %}
+        {% if perms.app.can_view_all_orders %}
+        <li><a class="nav__item-link" href="{% url 'orders' %}">Все заказы</a></li>    
+        {% else %}
+        <li><a class="nav__item-link" href="{% url 'cart' %}">Корзина</a></li>        
+        <li><a class="nav__item-link" href="{% url 'orders' %}">Мои заказы</a></li>
+        {% endif %}
         {% endif %}
         <li><span class="navbar-brand">Привет, {{ user.username }}!</span></li>
         <li><a href="javascript:document.getElementById('logoutForm').submit()">Выйти</a></li>

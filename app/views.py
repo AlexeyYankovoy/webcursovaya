@@ -4,14 +4,17 @@ Definition of views.
 
 from datetime import datetime
 from django.shortcuts import render, redirect
-from django.http import HttpRequest
+from django.http import HttpRequest, JsonResponse
 from django.contrib.auth.forms import UserCreationForm
-from .forms import FeedbackForm
+from django.core.exceptions import PermissionDenied
 from django.db import models
 from .models import Blog
 from .models import Comment
-from .forms import CommentForm
-from .forms import BlogForm
+from .forms import CommentForm, BlogForm, ProductForm
+from .models import Product
+from .models import Category
+from .models import Order, OrderStatus, OrderItem
+from django.shortcuts import get_object_or_404
 
 def home(request):
     """Renders the home page."""
@@ -51,19 +54,6 @@ def about(request):
         }
     )
 
-def links(request):
-    """Renders the links page."""
-    assert isinstance(request, HttpRequest)
-    return render(
-        request,
-        'app/links.html',
-        {
-            'title':'Ссылки',
-            'message':'Полезные ресурсы',
-            'year':datetime.now().year,
-        }
-    )
-
 def registration(request):
     """Renders the registration page."""
     assert isinstance(request, HttpRequest)
@@ -86,33 +76,6 @@ def registration(request):
         {
             'title':'Регистация',
             'regform':regform, # передача формы в шаблон веб-страницы
-            'year':datetime.now().year,
-        }
-    )
-
-def feedback(request):
-    """Renders the links page."""
-    assert isinstance(request, HttpRequest)
-    data=None
-    like={'1': 'Да', '2': 'Нет'}
-    if request.method=='POST':
-        form=FeedbackForm(request.POST)
-        if form.is_valid():
-            data=dict()
-            data['name']=form.cleaned_data['name']
-            data['email']=form.cleaned_data['email']
-            data['like']=like[form.cleaned_data['like']]
-            data['msg']=form.cleaned_data['msg']
-            form=None
-    else:
-        form=FeedbackForm()
-    return render(
-        request,
-        'app/feedback.html',
-        {
-            'title':'Оставить отзыв',
-            'form':form,
-            'data':data,
             'year':datetime.now().year,
         }
     )
@@ -183,14 +146,283 @@ def newpost(request):
         }
     )
 
-def video(request):
-    """Renders the video page."""
+def catalog(request):
     assert isinstance(request, HttpRequest)
+    categories = Category.objects.all()    
+    return render(
+        request, 
+        'app/catalog.html',
+        {
+            'categories': categories,
+            'title':'Каталог',
+            'year':datetime.now().year,
+        }
+    )
+
+def category(request, category_id):
+    categories=Category.objects.all()
+    category= get_object_or_404(Category, id=category_id)
+    products=Product.objects.filter(category=category)
     return render(
         request,
-        'app/video.html',
+        'app/category.html',
         {
-            'title':'Видео',
+            'categories': categories,
+            'category':category,
+            'products':products,
             'year':datetime.now().year,
+        }
+    )
+
+def product(request, product_id):
+    categories=Category.objects.all()
+    assert isinstance(request, HttpRequest)
+    product = Product.objects.get(id=product_id)
+    return render(
+        request, 
+        'app/product.html', 
+        {
+            'categories': categories,
+            'product': product,
+            'title':'Информация о товаре',
+            'year':datetime.now().year,
+        }
+    )
+
+def cart(request):
+    user = request.user
+    try:
+        active_order = Order.objects.get(user=user, is_sent=False)
+    except Order.DoesNotExist:
+        active_order = None
+    if active_order:
+        cart_items = active_order.order_items.all()
+        total_price = sum(item.subtotal for item in cart_items)
+    else:
+        cart_items = []
+        total_price = 0.00
+    return render(
+        request,
+        'app/cart.html',
+        {
+            'cart_items': cart_items,
+            'total_price': total_price,
+            'year': datetime.now().year,
+        }
+    )
+
+def add_to_cart(request):
+    if request.method == 'POST':
+        product_id = request.POST.get('product_id')
+        user = request.user
+        if not user.is_authenticated:
+            return JsonResponse({'error': 'Пользователь не аутентифицирован'}, status=401)  
+        quantity = 1
+        try:
+            product = Product.objects.get(id=product_id)
+        except Product.DoesNotExist:
+            return JsonResponse({'error': 'Продукт не найден'}, status=400)
+        active_order, created = Order.objects.get_or_create(user=user, is_sent=False)
+        order_item, created = OrderItem.objects.get_or_create(order=active_order, product=product)
+        if not created:
+            order_item.quantity += quantity
+        order_item.save()
+        return JsonResponse({'message': 'Продукт добавлен в корзину'})
+
+def remove_from_cart(request):
+    if request.method == 'POST':
+        item_id = request.POST.get('item_id')
+        user = request.user
+        if not user.is_authenticated:
+            return JsonResponse({'error': 'Пользователь не аутентифицирован'}, status=401)
+        try:
+            item = OrderItem.objects.get(id=item_id)
+        except OrderItem.DoesNotExist:
+            return JsonResponse({'error': 'Продукт не найден'}, status=400)
+        if not (user.has_perm('app.can_view_all_orders') or item.order.user == user):
+            return JsonResponse({'error': 'Недостаточно прав'}, status=403)
+        item.delete()
+        order_deleted = item.order.update_total_amount()
+        return JsonResponse({
+            'message': 'Продукт удалён из корзины',
+            'order_deleted': order_deleted
+        })
+
+def increase_quantity(request):
+    if request.method == 'POST':
+        item_id = request.POST.get('item_id')
+        user = request.user
+        if not user.is_authenticated:
+            return JsonResponse({'error': 'Пользователь не аутентифицирован'}, status=401)
+        try:
+            item = OrderItem.objects.get(id=item_id)
+            if not (user.has_perm('app.can_view_all_orders') or item.order.user == user):
+                return JsonResponse({'error': 'Недостаточно прав'}, status=403)
+            item.quantity += 1
+            item.save()
+            item.order.update_total_amount()
+            return JsonResponse({'message': 'Количество увеличено успешно.'})
+        except OrderItem.DoesNotExist:
+            return JsonResponse({'message': 'Продукт не найден.'})
+
+def decrease_quantity(request):
+    if request.method == 'POST':
+        item_id = request.POST.get('item_id')
+        user = request.user
+        if not user.is_authenticated:
+            return JsonResponse({'error': 'Пользователь не аутентифицирован'}, status=401)
+        try:
+            item = OrderItem.objects.get(id=item_id)
+            if not (user.has_perm('app.can_view_all_orders') or item.order.user == user):
+                return JsonResponse({'error': 'Недостаточно прав'}, status=403)
+            if item.quantity > 1:
+                item.quantity -= 1
+                item.save()
+                item.order.update_total_amount()
+                return JsonResponse({'message': 'Количество уменьшено успешно.'})
+            else:
+                item.delete()
+                order_deleted = item.order.update_total_amount()
+                return JsonResponse({
+                    'message': 'Продукт удален из корзины.',
+                    'order_deleted': order_deleted
+                })
+        except OrderItem.DoesNotExist:
+            return JsonResponse({'message': 'Продукт не найден.'})
+
+def delete_order(request):
+    if request.method == 'POST':
+        order_id = request.POST.get('order_id')
+        user = request.user
+        if not user.is_authenticated:
+            return JsonResponse({'error': 'Пользователь не аутентифицирован'}, status=401)
+        if not user.has_perm('app.can_view_all_orders'):
+            return JsonResponse({'error': 'Недостаточно прав'}, status=403)
+        try:
+            order = get_object_or_404(Order, id=order_id)
+            order.delete()
+            return JsonResponse({
+                'message': 'Заказ успешно удален.',
+                'order_deleted': True
+            })
+        except Order.DoesNotExist:
+            return JsonResponse({'message': 'Заказ не найден.'})
+
+def update_status(request):
+    if request.method == 'POST':
+        order_id = request.POST.get('order_id')
+        status_id = request.POST.get('status_id')
+        user = request.user
+        if not user.is_authenticated:
+            return JsonResponse({'error': 'Пользователь не аутентифицирован'}, status=401)
+        if not user.has_perm('app.can_view_all_orders'):
+            return JsonResponse({'error': 'Недостаточно прав'}, status=403)
+        try:
+            order = get_object_or_404(Order, id=order_id)
+            order.status = get_object_or_404(OrderStatus, id=status_id)
+            order.save()
+            return JsonResponse({
+                'message': 'Статус обновлён.',
+            })
+        except Order.DoesNotExist:
+            return JsonResponse({'message': 'Заказ/статус не найден.'})
+        
+def checkout(request):
+    user = request.user
+    try:
+        active_order = Order.objects.get(user=user, is_sent=False)
+        active_order.is_sent = True
+        active_order.save()
+        active_order.update_total_amount()
+    except Order.DoesNotExist:
+        pass
+    return render(request, 'app/checkout.html')
+
+def orders(request):
+    if request.user.has_perm('app.can_view_all_orders'):
+        orders = Order.objects.filter(is_sent=True)
+        template_name = 'app/all_orders.html'
+    elif request.user.is_authenticated:
+        orders = Order.objects.filter(user=request.user, is_sent=True)
+        template_name = 'app/user_orders.html'
+    else:
+        orders = None
+        template_name = 'app/index.html'
+    return render(
+        request,
+        template_name,
+        {
+            'orders': orders, 
+            'year': datetime.now().year,
+        }
+    )
+
+def order(request, order_id):
+    try:
+        order = Order.objects.get(id=order_id)
+        template_name = 'app/order.html'
+    except Order.DoesNotExist:
+        pass
+    user = request.user
+    if not user.is_authenticated:
+        raise PermissionDenied()
+    statuses = OrderStatus.objects.all()
+    return render(
+        request,
+        template_name,
+        {
+            'order': order,
+            'year': datetime.now().year,
+            'statuses': statuses,
+        }
+    )
+
+def add_product(request):
+    assert isinstance(request, HttpRequest)
+
+    if request.method == "POST":
+        product_form = ProductForm(request.POST, request.FILES)
+        if product_form.is_valid():
+            product_form.save()
+            return redirect('catalog')
+    else:
+        product_form = ProductForm()
+    return render(
+        request,
+        'app/add_product.html',
+        {
+            'product_form': product_form,
+            'title': 'Добавить продукт',
+            'year': datetime.now().year,
+        }
+    )
+
+def error_403(request, exception):
+    return render(
+        request,
+        'app/error.html',
+        {
+            'year': datetime.now().year,
+            'info': 'Нет доступа',
+        }
+    )
+
+def error_404(request, exception):
+    return render(
+        request,
+        'app/error.html',
+        {
+            'year': datetime.now().year,
+            'info': 'Страница не найдена',
+        }
+    )
+
+def error_500(request):
+    return render(
+        request,
+        'app/error.html',
+        {
+            'year': datetime.now().year,
+            'info': 'Нет доступа',
         }
     )

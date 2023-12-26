@@ -1,0 +1,102 @@
+﻿{% extends "app/layout.html" %}
+
+{% block content %}
+<div class="product-page">
+    <h2 class="product-title">Корзина</h2>
+    <table class="cart-table">
+        <thead>
+            <tr>
+                <th>Наименование товара</th>
+                <th>Кол-во</th>
+                <th>Цена за 1 шт.</th>
+                <th>Сумма</th>
+                <th>Удалить</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in cart_items %}
+            <tr>
+                <td>
+                    <a class="product-link" href="{% url 'product' item.product.id %}">{{ item.product.name }}</a>
+                </td>
+                <td>
+                    <button class="quantity-button decrease-quantity-button" data-item-id="{{ item.id }}">−</button>
+                    <span>{{ item.quantity }}</span>
+                    <button class="quantity-button increase-quantity-button" data-item-id="{{ item.id }}">+</button>
+                </td>
+                <td>{{ item.product.price }} ₽</td>
+                <td>{{ item.subtotal }} ₽</td>
+                <td>
+                    <button class="remove-from-cart-button" data-item-id="{{ item.id }}">X</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <h4 class="total-price">Итого: {{ total_price }} ₽</h4>
+    <button class="checkout-button" onclick="window.location.href='{% url 'checkout' %}'">Оформить заказ</button>   
+</div>
+
+<script>
+$(document).ready(function() {
+    $(".remove-from-cart-button").click(function() {
+        var item_id = $(this).data("item-id");
+
+        $.ajax({
+            type: "POST",
+            url: "{% url 'remove_from_cart' %}",
+            data: {
+                csrfmiddlewaretoken: '{{ csrf_token }}',
+                item_id: item_id,
+            },
+            success: function(data) {
+                alert(data.message);
+                location.reload();
+            },
+            error: function(xhr, status, error) {
+                console.error(xhr.responseText);
+                alert("Error: Продукт не может быть удален из корзины.");
+            }
+        });
+    });
+    $(".increase-quantity-button").click(function() {
+        var item_id = $(this).data("item-id");
+
+        $.ajax({
+            type: "POST",
+            url: "{% url 'increase_quantity' %}",
+            data: {
+                csrfmiddlewaretoken: '{{ csrf_token }}',
+                item_id: item_id,
+            },
+            success: function(data) {
+                location.reload();
+            },
+            error: function(xhr, status, error) {
+                console.error(xhr.responseText);
+                alert("Error: Не удалось увеличить количество.");
+            }
+        });
+    });
+    $(".decrease-quantity-button").click(function() {
+        var item_id = $(this).data("item-id");
+
+        $.ajax({
+            type: "POST",
+            url: "{% url 'decrease_quantity' %}",
+            data: {
+                csrfmiddlewaretoken: '{{ csrf_token }}',
+                item_id: item_id,
+            },
+            success: function(data) {
+                location.reload();
+            },
+            error: function(xhr, status, error) {
+                console.error(xhr.responseText);
+                alert("Error: Не удалось уменьшить количество.");
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

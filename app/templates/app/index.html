@@ -1,5 +1,5 @@
 ﻿{% extends "app/layout.html" %}
-{% load staticfiles %}
+{% load static %}
 {% block content %}
 <h2>{{ title }}</h2>
 <div id="myCarousel" class="carousel slide" data-ride="carousel" data-interval="5000">
@@ -14,7 +14,7 @@
             <div class="carousel-caption" role="option">
                 <p class="carousel-text">
                     Добро пожаловать на Mechboards
-                    <a class="btn btn-default" href="newspost/3/">
+                    <a class="btn btn-default" href="newspost/1/">
                         Читать далее
                     </a>
                 </p>
@@ -24,8 +24,8 @@
             <img src="{% static 'app/content/img/banner2.png'%}" alt="Второй слайд"  class="img-responsive" />
             <div class="carousel-caption" role="option">
                 <p class="carousel-text-inverse">
-                    Новая модель Varmilo Minilo
-                   <a class="btn btn-default" href="newspost/4/">Читать далее</a>
+                    Новая модель клавиатуры Corsair
+                   <a class="btn btn-default" href="newspost/2/">Читать далее</a>
                 </p>
             </div>
         </div>
@@ -33,8 +33,8 @@
             <img src=" {% static 'app/content/img/banner3.png'%} " alt="Третий слайд"  class="img-responsive" />
             <div class="carousel-caption" role="option">
                 <p class="carousel-text-inverse">
-                    Wooting UwU - Rapid Trigger Кейпад
-                    <a class="btn btn-default" href="newspost/5/">
+                    Razer гонится за технологиями
+                    <a class="btn btn-default" href="newspost/3/">
                         Читать далее
                     </a>
                 </p>
@@ -50,5 +50,7 @@
         <span class="sr-only">Next</span>
     </a>
 </div>
-
+<div class="main-page-content">    
+    <p>Mechboards – это ведущий онлайн-ресурс, специализирующийся на мире механических клавиатур. Мы предоставляем клиентам доступ к самым передовым и стильным моделям клавиатур, созданным с учетом потребностей геймеров, программистов и энтузиастов компьютерных технологий. Наш ассортимент включает в себя продукцию от ведущих производителей, гарантируя высочайшее качество и инновационные решения.</p>   
+</div>
 {% endblock %}
